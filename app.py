@@ -1,10 +1,16 @@
 from flask import Flask, render_template, request, redirect, url_for
 from models import db, Shipment
 from datetime import datetime
+import os
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///shipment.db'
+
+# Use PostgreSQL if DATABASE_URL is set (Render sets this automatically)
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///shipment.db').replace('postgres://', 'postgresql://')
+print("⚠️ Using DB:", app.config['SQLALCHEMY_DATABASE_URI'])
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = 'secretkey'
+
 db.init_app(app)
 
 with app.app_context():
