@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Viaco Delivery - Shipment Info</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      padding: 20px;
+    }
+    ul {
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      max-width: 600px;
+      margin: auto;
+    }
+    #map {
+      height: 400px;
+      margin-top: 20px;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+{% if error %}
+  <p>{{ error }}</p>
+{% else %}
+  <ul>
+    <li><strong>Sender:</strong> {{ shipment.sender_name }} - {{ shipment.sender_contact }}</li>
+    <li><strong>Receiver:</strong> {{ shipment.receiver_name }} - {{ shipment.receiver_contact }}</li>
+    <li><strong>Takeoff:</strong> {{ shipment.takeoff_location }}</li>
+    <li><strong>Current:</strong> {{ shipment.current_location }}</li>
+    <li><strong>Destination:</strong> {{ shipment.destination }}</li>
+    <li><strong>Status:</strong> {{ shipment.status }}</li>
+    <li><strong>Expected Delivery:</strong> {{ shipment.expected_delivery.strftime('%Y-%m-%d') }}</li>
+    <li><strong>Item:</strong> {{ shipment.item_description }}</li>
+  </ul>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.min.js"></script>
+  <script>
+    const map = L.map('map').setView([6.5244, 3.3792], 5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    const locations = {
+      'Lagos, Nigeria': [6.5244, 3.3792],
+      'Accra, Ghana': [5.6037, -0.1870],
+      'Warsaw, Poland': [52.2297, 21.0122]
+    };
+
+    const waypoints = [
+      L.latLng(locations["{{ shipment.takeoff_location }}"] || [6.5244, 3.3792]),
+      L.latLng(locations["{{ shipment.current_location }}"] || [5.6037, -0.1870]),
+      L.latLng(locations["{{ shipment.destination }}"] || [52.2297, 21.0122])
+    ];
+
+    L.Routing.control({
+      waypoints: waypoints,
+      routeWhileDragging: false,
+      createMarker: function(i, wp, nWps) {
+        let label = ["Takeoff", "Current", "Destination"][i];
+        return L.marker(wp).bindPopup(label).openPopup();
+      }
+    }).addTo(map);
+  </script>
+{% endif %}
+</body>
+</html>

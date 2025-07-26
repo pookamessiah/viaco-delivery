@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Panel - Viaco Delivery</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 40px;
+            background: #f0f0f0;
+        }
+        form, ul {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 700px;
+            margin: 20px auto;
+        }
+        input, button {
+            display: block;
+            margin: 10px 0;
+            padding: 10px;
+            width: 100%;
+        }
+        button {
+            background: #0d6efd;
+            color: white;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+<h1>Admin - Add Shipment</h1>
+<form method="POST" action="/admin/add">
+    <input name="tracking_code" placeholder="Tracking Code" required>
+    <input name="sender_name" placeholder="Sender Name">
+    <input name="sender_contact" placeholder="Sender Contact">
+    <input name="receiver_name" placeholder="Receiver Name">
+    <input name="receiver_contact" placeholder="Receiver Contact">
+    <input name="takeoff_location" placeholder="Takeoff Location">
+    <input name="current_location" placeholder="Current Location">
+    <input name="destination" placeholder="Destination">
+    <input name="status" placeholder="Status">
+    <input name="expected_delivery" placeholder="Expected Delivery (YYYY-MM-DD)">
+    <input name="item_description" placeholder="Item Description">
+    <button type="submit">Add Shipment</button>
+</form>
+
+<h2>All Shipments</h2>
+<ul>
+{% for item in shipments %}
+    <li>{{ item.tracking_code }} → {{ item.status }}</li>
+{% endfor %}
+</ul>
+</body>
+</html>
