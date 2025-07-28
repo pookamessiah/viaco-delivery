@@ -11,12 +11,12 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 
 with app.app_context():
-    tracking_code = "HGVGgjF576"  # Replace with your real code
+    tracking_code = "VIA6728DF"  # Replace with your real code
     shipment = Shipment.query.filter_by(tracking_code=tracking_code).first()
     
     if shipment:
         print(f"✅ Found shipment: {shipment.tracking_code}")
-        shipment.current_location = "Warsaw"  # Change to new location
+        shipment.current_location = "Warsaw Chopin Airport in Poland"  # Change to new location
         db.session.commit()
         print("✅ Current location updated to:", shipment.current_location)
     else:
