@@ -53,5 +53,27 @@ def add_shipment():
     db.session.commit()
     return redirect(url_for('admin'))
 
+@app.route('/admin/edit/<tracking_code>', methods=['GET', 'POST'])
+def edit_delivery(tracking_code):
+    shipment = Shipment.query.filter_by(tracking_code=tracking_code).first()
+    if not shipment:
+        return "Shipment not found", 404
+
+    if request.method == 'POST':
+        shipment.sender_name = request.form['sender_name']
+        shipment.sender_contact = request.form['sender_contact']
+        shipment.receiver_name = request.form['receiver_name']
+        shipment.receiver_contact = request.form['receiver_contact']
+        shipment.takeoff_location = request.form['takeoff_location']
+        shipment.current_location = request.form['current_location']
+        shipment.destination = request.form['destination']
+        shipment.status = request.form['status']
+        shipment.expected_delivery = datetime.strptime(request.form['expected_delivery'], '%Y-%m-%d')
+        shipment.item_description = request.form['item_description']
+        db.session.commit()
+        return redirect(url_for('admin'))
+
+    return render_template('edit_delivery.html', shipment=shipment)
+
 if __name__ == '__main__':
     app.run(debug=True)

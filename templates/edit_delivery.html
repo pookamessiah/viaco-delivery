@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Edit Delivery - Viaco Admin</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 40px;
+            background: #f0f0f0;
+        }
+        form {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 700px;
+            margin: 20px auto;
+        }
+        input, button {
+            display: block;
+            margin: 10px 0;
+            padding: 10px;
+            width: 100%;
+        }
+        button {
+            background: #0d6efd;
+            color: white;
+            border: none;
+        }
+        a {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h2>Edit Delivery: {{ shipment.tracking_code }}</h2>
+    <form method="POST">
+        <label>Sender Name:</label>
+        <input type="text" name="sender_name" value="{{ shipment.sender_name }}">
+
+        <label>Sender Contact:</label>
+        <input type="text" name="sender_contact" value="{{ shipment.sender_contact }}">
+
+        <label>Receiver Name:</label>
+        <input type="text" name="receiver_name" value="{{ shipment.receiver_name }}">
+
+        <label>Receiver Contact:</label>
+        <input type="text" name="receiver_contact" value="{{ shipment.receiver_contact }}">
+
+        <label>Takeoff Location:</label>
+        <input type="text" name="takeoff_location" value="{{ shipment.takeoff_location }}">
+
+        <label>Current Location:</label>
+        <input type="text" name="current_location" value="{{ shipment.current_location }}">
+
+        <label>Destination:</label>
+        <input type="text" name="destination" value="{{ shipment.destination }}">
+
+        <label>Status:</label>
+        <input type="text" name="status" value="{{ shipment.status }}">
+
+        <label>Expected Delivery Date:</label>
+        <input type="date" name="expected_delivery" value="{{ shipment.expected_delivery.strftime('%Y-%m-%d') }}">
+
+        <label>Item Description:</label>
+        <input type="text" name="item_description" value="{{ shipment.item_description }}">
+
+        <button type="submit">Update Shipment</button>
+    </form>
+
+    <a href="{{ url_for('admin') }}">← Back to Admin Panel</a>
+</body>
+</html>
