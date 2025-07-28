@@ -40,34 +40,36 @@
     <li><strong>Expected Delivery:</strong> {{ shipment.expected_delivery.strftime('%Y-%m-%d') }}</li>
     <li><strong>Item:</strong> {{ shipment.item_description }}</li>
   </ul>
+
   <div id="map"></div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.min.js"></script>
   <script>
-    const map = L.map('map').setView([6.5244, 3.3792], 5);
+    const map = L.map('map').setView([52.2297, 21.0122], 5);  // Poland center
+
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors'
     }).addTo(map);
 
     const locations = {
-      'Lagos, Nigeria': [6.5244, 3.3792],
-      'Accra, Ghana': [5.6037, -0.1870],
-      'Warsaw, Poland': [52.2297, 21.0122]
+      "London": [51.5074, -0.1278],
+      "Warsaw Chopin Airport": [52.1657, 20.9671],
+      "Leszka Bialego 9 m26 Łódź, Poland": [51.7592, 19.4560]
     };
 
     const waypoints = [
-      L.latLng(locations["{{ shipment.takeoff_location }}"] || [6.5244, 3.3792]),
-      L.latLng(locations["{{ shipment.current_location }}"] || [5.6037, -0.1870]),
-      L.latLng(locations["{{ shipment.destination }}"] || [52.2297, 21.0122])
+      L.latLng(locations["London"]),
+      L.latLng(locations["Warsaw Chopin Airport"]),
+      L.latLng(locations["Leszka Bialego 9 m26 Łódź, Poland"])
     ];
 
     L.Routing.control({
       waypoints: waypoints,
       routeWhileDragging: false,
       createMarker: function(i, wp, nWps) {
-        let label = ["Takeoff", "Current", "Destination"][i];
-        return L.marker(wp).bindPopup(label).openPopup();
+        const labels = ["📦 Takeoff - London", "🛬 Current - Warsaw Airport", "📍 Final - Łódź"];
+        return L.marker(wp).bindPopup(labels[i]).openPopup();
       }
     }).addTo(map);
   </script>
