@@ -1,121 +1,190 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Viaco Delivery - Shipment Tracking</title>
+  <meta charset="utf-8" />
+  <title>Viaco Delivery — Shipment</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
   <style>
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #f4f6f9;
-      margin: 0;
-      padding: 20px;
-      color: #333;
+    :root{
+      --accent:#0d6efd;
+      --card:#ffffff;
+      --bg:#f4f6f9;
     }
-    .card {
-      background: #fff;
-      padding: 25px;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      max-width: 750px;
-      margin: auto;
+    body{
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      margin:0; background:var(--bg); color:#222;
+      padding:20px;
+      -webkit-font-smoothing:antialiased;
     }
-    .card h2 {
-      text-align: center;
-      margin-bottom: 20px;
-      color: #0d6efd;
+    .card{
+      max-width:980px; margin: 0 auto; background:var(--card);
+      border-radius:12px; padding:22px; box-shadow: 0 8px 30px rgba(20,30,40,0.06);
     }
-    ul {
-      list-style: none;
-      padding: 0;
+    h1{ margin:0 0 12px; color:var(--accent); font-size:20px; text-align:center;}
+    .info-grid{
+      display:grid; grid-template-columns: 1fr 320px; gap:18px;
+      align-items:start;
     }
-    li {
-      padding: 10px;
-      border-bottom: 1px solid #eee;
+    .meta{
+      padding:12px; border-radius:8px; border:1px solid #eef2f6;
+      background:#fff;
     }
-    li strong {
-      color: #0d6efd;
-    }
-    #map {
-      height: 450px;
-      margin-top: 20px;
-      border-radius: 12px;
-      overflow: hidden;
-    }
-    .status {
-      font-weight: bold;
-      color: green;
-    }
+    .meta ul{ list-style:none; padding:0; margin:0; }
+    .meta li{ padding:8px 0; border-bottom:1px dashed #f0f2f5; }
+    .meta li strong{ color:var(--accent); display:inline-block; width:130px; }
+    #map { height:440px; border-radius:10px; overflow:hidden; width:100%; }
+    .note { font-size:13px; color:#666; margin-top:12px; text-align:center; }
+    .bad { color:#b00020; font-weight:600; }
   </style>
 </head>
 <body>
-  {% if error %}
-    <div class="card">
-      <p style="color:red; text-align:center;">{{ error }}</p>
-    </div>
-  {% else %}
   <div class="card">
-    <h2>📦 Shipment Details</h2>
-    <ul>
-      <li><strong>Sender:</strong> {{ shipment.sender_name }} - {{ shipment.sender_contact }}</li>
-      <li><strong>Receiver:</strong> {{ shipment.receiver_name }} - {{ shipment.receiver_contact }}</li>
-      <li><strong>Takeoff:</strong> {{ shipment.takeoff_location }}</li>
-      <li><strong>Current:</strong> {{ shipment.current_location }}</li>
-      <li><strong>Destination:</strong> {{ shipment.destination }}</li>
-      <li><strong>Status:</strong> <span class="status">{{ shipment.status }}</span></li>
-      <li><strong>Expected Delivery:</strong> {{ shipment.expected_delivery.strftime('%Y-%m-%d') }}</li>
-      <li><strong>Item:</strong> {{ shipment.item_description }}</li>
-    </ul>
-    <div id="map"></div>
+    {% if error %}
+      <p class="bad">{{ error }}</p>
+    {% else %}
+    <h1>📦 Viaco Delivery — Shipment {{ shipment.tracking_code }}</h1>
+
+    <div class="info-grid">
+      <div class="meta">
+        <ul>
+          <li><strong>Sender:</strong> {{ shipment.sender_name or "—" }} &nbsp; {{ shipment.sender_contact or "" }}</li>
+          <li><strong>Receiver:</strong> {{ shipment.receiver_name or "—" }} &nbsp; {{ shipment.receiver_contact or "" }}</li>
+          <li><strong>Takeoff:</strong> {{ shipment.takeoff_location or "—" }}</li>
+          <li><strong>Current:</strong> {{ shipment.current_location or "—" }}</li>
+          <li><strong>Destination:</strong> {{ shipment.destination or "—" }}</li>
+          <li><strong>Status:</strong> {{ shipment.status or "—" }}</li>
+          <li><strong>Expected delivery:</strong> {{ shipment.expected_delivery.strftime('%Y-%m-%d') if shipment.expected_delivery else "—" }}</li>
+          <li><strong>Item:</strong> {{ shipment.item_description or "—" }}</li>
+        </ul>
+        <p class="note">Edit locations from the Admin panel to update the map.</p>
+      </div>
+
+      <div id="map"></div>
+    </div>
+    {% endif %}
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.min.js"></script>
   <script>
-    const map = L.map('map').setView([51.505, -0.09], 5); // Default center
+  // --- Helper utilities ----------------------------------------------------
+  const parseLatLon = (text) => {
+    // Accept "lat,lon" or "lat, lon"
+    if (!text) return null;
+    const m = text.trim().match(/^(-?\d+(\.\d+)?)[\s,]+(-?\d+(\.\d+)?)$/);
+    if (m) return [parseFloat(m[1]), parseFloat(m[3])];
+    return null;
+  };
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
+  // Fallback coordinates for common locations you mentioned
+  const FALLBACK = {
+    "london": [51.5074, -0.1278],
+    "london, uk": [51.5074, -0.1278],
+    "warsaw chopin airport": [52.1657, 20.9671],
+    "warsaw": [52.2297, 21.0122],
+    "łódź": [51.7592, 19.4560],
+    "lodz": [51.7592, 19.4560],
+    "leszka bialego 9": [51.7597, 19.4556], // close to the given address
+    "leszka bialego 9 m26 łódź": [51.7597, 19.4556]
+  };
 
-    // Function to fetch coordinates from OpenStreetMap (Nominatim)
-    async function getCoords(place) {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(place)}`);
-      const data = await res.json();
-      if (data.length > 0) {
-        return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
-      }
-      return null;
-    }
+  async function geocode(place) {
+    // 1) If user provided explicit coordinates parse them
+    const parsed = parseLatLon(place);
+    if (parsed) return parsed;
 
-    async function buildRoute() {
-      const takeoff = await getCoords("{{ shipment.takeoff_location }}");
-      const current = await getCoords("{{ shipment.current_location }}");
-      const destination = await getCoords("{{ shipment.destination }}");
-
-      let points = [];
-      if (takeoff) points.push(L.latLng(takeoff));
-      if (current) points.push(L.latLng(current));
-      if (destination) points.push(L.latLng(destination));
-
-      if (points.length >= 2) {
-        L.Routing.control({
-          waypoints: points,
-          routeWhileDragging: false,
-          show: true,
-          createMarker: function(i, wp) {
-            let labels = ["🚀 Takeoff", "✈️ Current", "🏠 Destination"];
-            return L.marker(wp).bindPopup(labels[i] || "Stop");
-          }
-        }).addTo(map);
-
-        map.fitBounds(L.latLngBounds(points)); // Auto-zoom to show all markers
+    // 2) check fallback by lowered substring match
+    if (place) {
+      const key = place.toLowerCase();
+      for (const k of Object.keys(FALLBACK)) {
+        if (key.includes(k)) return FALLBACK[k];
       }
     }
 
-    buildRoute();
+    // 3) call Nominatim (OpenStreetMap) — basic usage, respect their usage policy
+    try {
+      const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(place);
+      const res = await fetch(url, {
+        headers: { 'Accept-Language': 'en' } // keep results predictable
+      });
+      if (!res.ok) return null;
+      const arr = await res.json();
+      if (arr && arr.length > 0) {
+        return [ parseFloat(arr[0].lat), parseFloat(arr[0].lon) ];
+      }
+    } catch (e) {
+      console.warn('Geocode error', e);
+    }
+    return null;
+  }
+
+  // --- Map initialization -------------------------------------------------
+  const mapEl = document.getElementById('map');
+  const map = L.map(mapEl).setView([52.0, 19.0], 5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+  }).addTo(map);
+
+  // Marker icons
+  const iconBase = L.Icon.extend({
+    options: { iconSize:[28,28], iconAnchor:[14,28], popupAnchor:[0,-20] }
+  });
+  const takeoffIcon = new iconBase({ iconUrl: 'https://cdn.jsdelivr.net/gh/pointhi/leaflet-color-markers@master/img/marker-icon-green.png' });
+  const currentIcon = new iconBase({ iconUrl: 'https://cdn.jsdelivr.net/gh/pointhi/leaflet-color-markers@master/img/marker-icon-orange.png' });
+  const destIcon    = new iconBase({ iconUrl: 'https://cdn.jsdelivr.net/gh/pointhi/leaflet-color-markers@master/img/marker-icon-red.png' });
+
+  // --- Read shipment locations from server-rendered variables -------------
+  const takeoffText = `{{ shipment.takeoff_location | replace("\n"," ") | e }}`;     // Jinja escapes
+  const currentText = `{{ shipment.current_location | replace("\n"," ") | e }}`;
+  const destText    = `{{ shipment.destination | replace("\n"," ") | e }}`;
+
+  // Async routine to get coords, add markers & draw polyline
+  (async function renderShipmentRoute(){
+    const coords = [];
+
+    const t = await geocode(takeoffText);
+    if (t) { coords.push({role:'takeoff', latlng: t}); }
+
+    const c = await geocode(currentText);
+    if (c) { coords.push({role:'current', latlng: c}); }
+
+    const d = await geocode(destText);
+    if (d) { coords.push({role:'destination', latlng: d}); }
+
+    // If we have at least one coordinate, show markers; if none, show message.
+    if (coords.length === 0){
+      mapEl.innerHTML = '<p style="padding:18px; text-align:center;">Could not determine any coordinates for the shipment locations. Please check the addresses in the admin panel.</p>';
+      return;
+    }
+
+    const markers = [];
+    coords.forEach((pt, i) => {
+      let marker, label;
+      if (pt.role === 'takeoff') {
+        label = `🚀 Takeoff: {{ shipment.takeoff_location }}`;
+        marker = L.marker(pt.latlng, {icon: takeoffIcon}).bindPopup(label);
+      } else if (pt.role === 'current') {
+        label = `✈️ Current: {{ shipment.current_location }}`;
+        marker = L.marker(pt.latlng, {icon: currentIcon}).bindPopup(label);
+      } else {
+        label = `🏁 Destination: {{ shipment.destination }}`;
+        marker = L.marker(pt.latlng, {icon: destIcon}).bindPopup(label);
+      }
+      marker.addTo(map);
+      markers.push(marker);
+    });
+
+    // Draw a polyline connecting points in order: takeoff -> current -> destination
+    const latlngs = coords.map(c => c.latlng);
+    const poly = L.polyline(latlngs, { color:'#0d6efd', weight:4, opacity:0.85 }).addTo(map);
+
+    // fit map to show everything
+    const bounds = L.latLngBounds(latlngs);
+    map.fitBounds(bounds.pad(0.2));
+
+    // Open popups in order: takeoff then current then destination (if present)
+    markers.forEach((m,idx) => setTimeout(()=> m.openPopup(), idx*600));
+  })();
   </script>
-  {% endif %}
 </body>
 </html>
