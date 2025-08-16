@@ -2,99 +2,120 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Viaco Delivery - Shipment Info</title>
+  <title>Viaco Delivery - Shipment Tracking</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: #f4f4f4;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f4f6f9;
+      margin: 0;
       padding: 20px;
+      color: #333;
     }
-    ul {
+    .card {
       background: #fff;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-      max-width: 600px;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      max-width: 750px;
       margin: auto;
     }
+    .card h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #0d6efd;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+    li {
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+    }
+    li strong {
+      color: #0d6efd;
+    }
     #map {
-      height: 400px;
+      height: 450px;
       margin-top: 20px;
-      border-radius: 8px;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .status {
+      font-weight: bold;
+      color: green;
     }
   </style>
 </head>
 <body>
-{% if error %}
-  <p>{{ error }}</p>
-{% else %}
-  <ul>
-    <li><strong>Sender:</strong> {{ shipment.sender_name }} - {{ shipment.sender_contact }}</li>
-    <li><strong>Receiver:</strong> {{ shipment.receiver_name }} - {{ shipment.receiver_contact }}</li>
-    <li><strong>Takeoff:</strong> {{ shipment.takeoff_location }}</li>
-    <li><strong>Current:</strong> {{ shipment.current_location }}</li>
-    <li><strong>Destination:</strong> {{ shipment.destination }}</li>
-    <li><strong>Status:</strong> {{ shipment.status }}</li>
-    <li><strong>Expected Delivery:</strong> {{ shipment.expected_delivery.strftime('%Y-%m-%d') }}</li>
-    <li><strong>Item:</strong> {{ shipment.item_description }}</li>
-  </ul>
-
-  <div id="map"></div>
+  {% if error %}
+    <div class="card">
+      <p style="color:red; text-align:center;">{{ error }}</p>
+    </div>
+  {% else %}
+  <div class="card">
+    <h2>📦 Shipment Details</h2>
+    <ul>
+      <li><strong>Sender:</strong> {{ shipment.sender_name }} - {{ shipment.sender_contact }}</li>
+      <li><strong>Receiver:</strong> {{ shipment.receiver_name }} - {{ shipment.receiver_contact }}</li>
+      <li><strong>Takeoff:</strong> {{ shipment.takeoff_location }}</li>
+      <li><strong>Current:</strong> {{ shipment.current_location }}</li>
+      <li><strong>Destination:</strong> {{ shipment.destination }}</li>
+      <li><strong>Status:</strong> <span class="status">{{ shipment.status }}</span></li>
+      <li><strong>Expected Delivery:</strong> {{ shipment.expected_delivery.strftime('%Y-%m-%d') }}</li>
+      <li><strong>Item:</strong> {{ shipment.item_description }}</li>
+    </ul>
+    <div id="map"></div>
+  </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.min.js"></script>
   <script>
-    const map = L.map('map').setView([51.5, -0.12], 5); // Default center
+    const map = L.map('map').setView([51.505, -0.09], 5); // Default center
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors'
     }).addTo(map);
 
-    // Shipment locations from backend
-    const takeoff = "{{ shipment.takeoff_location }}";
-    const current = "{{ shipment.current_location }}";
-    const destination = "{{ shipment.destination }}";
-
-    // Function to get coordinates from Nominatim (OpenStreetMap Geocoding)
-    async function getCoordinates(place) {
-      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(place)}`;
-      const response = await fetch(url);
-      const data = await response.json();
+    // Function to fetch coordinates from OpenStreetMap (Nominatim)
+    async function getCoords(place) {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(place)}`);
+      const data = await res.json();
       if (data.length > 0) {
         return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
       }
       return null;
     }
 
-    async function showRoute() {
-      const takeoffCoords = await getCoordinates(takeoff);
-      const currentCoords = await getCoordinates(current);
-      const destinationCoords = await getCoordinates(destination);
+    async function buildRoute() {
+      const takeoff = await getCoords("{{ shipment.takeoff_location }}");
+      const current = await getCoords("{{ shipment.current_location }}");
+      const destination = await getCoords("{{ shipment.destination }}");
 
-      if (takeoffCoords && currentCoords && destinationCoords) {
+      let points = [];
+      if (takeoff) points.push(L.latLng(takeoff));
+      if (current) points.push(L.latLng(current));
+      if (destination) points.push(L.latLng(destination));
+
+      if (points.length >= 2) {
         L.Routing.control({
-          waypoints: [
-            L.latLng(takeoffCoords),
-            L.latLng(currentCoords),
-            L.latLng(destinationCoords)
-          ],
+          waypoints: points,
           routeWhileDragging: false,
-          createMarker: function(i, wp, nWps) {
-            const labels = ["📦 Takeoff", "🛬 Current", "📍 Destination"];
-            return L.marker(wp).bindPopup(labels[i]).openPopup();
+          show: true,
+          createMarker: function(i, wp) {
+            let labels = ["🚀 Takeoff", "✈️ Current", "🏠 Destination"];
+            return L.marker(wp).bindPopup(labels[i] || "Stop");
           }
         }).addTo(map);
 
-        map.fitBounds([takeoffCoords, currentCoords, destinationCoords]);
-      } else {
-        alert("Could not load map locations. Please check addresses.");
+        map.fitBounds(L.latLngBounds(points)); // Auto-zoom to show all markers
       }
     }
 
-    showRoute();
+    buildRoute();
   </script>
-{% endif %}
+  {% endif %}
 </body>
 </html>
