@@ -46,32 +46,54 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.min.js"></script>
   <script>
-    const map = L.map('map').setView([52.2297, 21.0122], 5);  // Poland center
+    const map = L.map('map').setView([51.5, -0.12], 5); // Default center
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors'
     }).addTo(map);
 
-    const locations = {
-      "London": [51.5074, -0.1278],
-      "Warsaw Chopin Airport": [52.1657, 20.9671],
-      "Leszka Bialego 9 m26 Łódź, Poland": [51.7592, 19.4560]
-    };
+    // Shipment locations from backend
+    const takeoff = "{{ shipment.takeoff_location }}";
+    const current = "{{ shipment.current_location }}";
+    const destination = "{{ shipment.destination }}";
 
-    const waypoints = [
-      L.latLng(locations["London"]),
-      L.latLng(locations["Warsaw Chopin Airport"]),
-      L.latLng(locations["Leszka Bialego 9 m26 Łódź, Poland"])
-    ];
-
-    L.Routing.control({
-      waypoints: waypoints,
-      routeWhileDragging: false,
-      createMarker: function(i, wp, nWps) {
-        const labels = ["📦 Takeoff - London", "🛬 Current - Warsaw Airport", "📍 Final - Łódź"];
-        return L.marker(wp).bindPopup(labels[i]).openPopup();
+    // Function to get coordinates from Nominatim (OpenStreetMap Geocoding)
+    async function getCoordinates(place) {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(place)}`;
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data.length > 0) {
+        return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
       }
-    }).addTo(map);
+      return null;
+    }
+
+    async function showRoute() {
+      const takeoffCoords = await getCoordinates(takeoff);
+      const currentCoords = await getCoordinates(current);
+      const destinationCoords = await getCoordinates(destination);
+
+      if (takeoffCoords && currentCoords && destinationCoords) {
+        L.Routing.control({
+          waypoints: [
+            L.latLng(takeoffCoords),
+            L.latLng(currentCoords),
+            L.latLng(destinationCoords)
+          ],
+          routeWhileDragging: false,
+          createMarker: function(i, wp, nWps) {
+            const labels = ["📦 Takeoff", "🛬 Current", "📍 Destination"];
+            return L.marker(wp).bindPopup(labels[i]).openPopup();
+          }
+        }).addTo(map);
+
+        map.fitBounds([takeoffCoords, currentCoords, destinationCoords]);
+      } else {
+        alert("Could not load map locations. Please check addresses.");
+      }
+    }
+
+    showRoute();
   </script>
 {% endif %}
 </body>
