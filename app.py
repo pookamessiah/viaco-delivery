@@ -17,8 +17,10 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'secretkey')
 
 db.init_app(app)
 
+# ✅ STEP 5: Initialize database tables
 with app.app_context():
     db.create_all()
+    print("✅ Database tables created (if not already present).")
 
 
 def shipment_to_dict(s: Shipment):
@@ -43,7 +45,6 @@ def index():
     return render_template('index.html')
 
 
-# Accept GET and POST. GET supports ?q=TRACKCODE and ?json=1
 @app.route('/track', methods=['GET', 'POST'])
 def track():
     tracking_code = None
@@ -52,11 +53,9 @@ def track():
     if request.method == 'POST':
         tracking_code = request.form.get('tracking_code')
     else:
-        # GET: support /track?q=CODE
         tracking_code = request.args.get('q')
 
     if not tracking_code:
-        # No code provided -> show index (or a search form)
         return render_template('index.html')
 
     shipment = Shipment.query.filter_by(tracking_code=tracking_code).first()
@@ -71,7 +70,6 @@ def track():
     return render_template('track.html', shipment=shipment)
 
 
-# Direct link route: /track/VIA6728DF
 @app.route('/track/<tracking_code>', methods=['GET'])
 def track_direct(tracking_code):
     as_json = request.args.get('json') == '1'
@@ -94,7 +92,6 @@ def admin():
 @app.route('/admin/add', methods=['POST'])
 def add_shipment():
     data = request.form
-    # safe parsing of expected_delivery
     expected_delivery_raw = data.get('expected_delivery', '').strip()
     expected_delivery = None
     if expected_delivery_raw:
@@ -128,7 +125,6 @@ def edit_delivery(tracking_code):
         return "Shipment not found", 404
 
     if request.method == 'POST':
-        # Update fields defensively
         shipment.sender_name = request.form.get('sender_name')
         shipment.sender_contact = request.form.get('sender_contact')
         shipment.receiver_name = request.form.get('receiver_name')
@@ -143,7 +139,6 @@ def edit_delivery(tracking_code):
             try:
                 shipment.expected_delivery = datetime.strptime(expected_delivery_raw, '%Y-%m-%d')
             except ValueError:
-                # keep previous value if parsing fails
                 pass
         else:
             shipment.expected_delivery = None
@@ -157,7 +152,6 @@ def edit_delivery(tracking_code):
 
 @app.route('/admin/delete/<tracking_code>', methods=['POST'])
 def delete_shipment(tracking_code):
-    # optional convenience route to remove a shipment from admin UI
     shipment = Shipment.query.filter_by(tracking_code=tracking_code).first()
     if not shipment:
         return redirect(url_for('admin'))
@@ -167,5 +161,4 @@ def delete_shipment(tracking_code):
 
 
 if __name__ == '__main__':
-    # when running locally
     app.run(debug=True, host='0.0.0.0', port=int(os.getenv('PORT', 5000)))
