@@ -162,3 +162,6 @@ def delete_shipment(tracking_code):
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.getenv('PORT', 5000)))
+# Create tables automatically if they don't exist
+with app.app_context():
+    db.create_all()
